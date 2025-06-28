@@ -6,14 +6,18 @@ A FastAPI application for managing shared purchasing.
 
 1. Install dependencies:
 ```bash
-pip install -r app/requirements.txt
+pip install -r requirements.txt
 ```
 
 2. Set up your local database and update the DATABASE_URL in `app/database.py`
 
 3. Run the application:
 ```bash
-uvicorn app.main:app --reload
+python run.py
+```
+   Or directly with uvicorn:
+```bash
+cd app && uvicorn main:app --reload
 ```
 
 ## Railway Deployment
