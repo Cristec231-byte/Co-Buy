@@ -1,0 +1,69 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+html {
+  height: 100%;
+}
+
+/* App.css */
+
+.main-title {
+  font-size: 5.5rem; /* ~56px */
+  font-weight: 700;
+  color: white;
+}
+
+.subtitle {
+  font-size: 1.5rem; /* ~24px */
+  font-weight: 600;
+  color: white;
+  margin-top: 0.5rem;
+}
+
+/* App.css */
+
+.logo-img {
+  width: 190px;
+  height: 200px;
+}
+
+.login-box {
+  background-color: #414590d7;
+  backdrop-filter: blur(10px);
+  padding: 5rem 2rem;
+  border-radius: 2rem;
+  box-shadow: 0 10px 40px rgba(255, 255, 255, 0.089);
+  width: 90%;
+  max-width: 800px;
+  min-height: 850px;
+  text-align: center;
+}
+
+.input-field {
+  padding: 1rem 3rem;
+  border-radius: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  outline: none;
+  border: none;
+}
+
+.input-field::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.submit-button {
+  background-color: white;
+  color: #414590;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s ease;
+}
+
+.submit-button:hover {
+  background-color: #ddd6f3;
+}
