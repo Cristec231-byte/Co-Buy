@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # Use Railway's DATABASE_URL environment variable, fallback to local
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:cobuy@localhost/Cobuy")
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:pPhqSquMxbQSnkoljCvXPAMoOJnHFFyB@ballast.proxy.rlwy.net:30147/railway")
 
 # Railway provides DATABASE_URL in postgres:// format, but SQLAlchemy needs postgresql://
 if DATABASE_URL.startswith("postgres://"):

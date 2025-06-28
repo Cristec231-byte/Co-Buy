@@ -42,8 +42,16 @@ This application is configured for deployment on Railway.
 
 3. **Deploy the Application:**
    - Railway will automatically detect this is a Python application
-   - It will use the `railway.json` configuration and `Procfile`
+   - It will use the `railway.json` configuration and `run.py` entry point
    - The app will be available at your Railway-provided URL
+   - Database tables will be created automatically on first run
+
+### Database Features
+- ✅ Automatic SSL connection handling
+- ✅ Connection pooling for better performance  
+- ✅ Health check monitoring
+- ✅ Auto-table creation on startup
+- ✅ Production-ready configuration
 
 ### Environment Variables
 
