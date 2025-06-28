@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from typing import List
 import os
 
 import models, schemas, crud  
@@ -39,7 +40,7 @@ def get_db():
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
     return crud.create_item(db, item)
 
-@app.get("/items/", response_model=list[schemas.Item])
+@app.get("/items/", response_model=List[schemas.Item])
 def read_items(db: Session = Depends(get_db)):
     return crud.get_items(db)
 
