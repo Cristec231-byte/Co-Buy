@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app import schemas
-from app import models
+import schemas
+import models
 
 def get_items(db: Session):
     return db.query(models.Item).all()
