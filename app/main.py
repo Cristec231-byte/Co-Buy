@@ -1,17 +1,16 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import os
 
-import models, schemas, crud  
-
+import models, schemas, crud
 from database import SessionLocal, engine
 
-# Create all tables (including the new 'data' table)
+# Create all tables (including the new 'investors' table)
 try:
     models.Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created successfully - Tables: items, data")
+    print("✅ Database tables created successfully - Tables: items, investors")
 except Exception as e:
     print(f"❌ Database table creation failed: {e}")
 
@@ -40,6 +39,34 @@ def get_db():
     finally:
         db.close()
 
+# Test database connection
+@app.get("/test-db")
+def test_database_connection(db: Session = Depends(get_db)):
+    """Test PostgreSQL connection and show table info"""
+    try:
+        # Count items and investors
+        item_count = db.query(models.Item).count()
+        investor_count = db.query(models.Investor).count()
+        
+        return {
+            "status": "✅ PostgreSQL connection successful",
+            "database": "Railway PostgreSQL",
+            "tables": {
+                "items": item_count,
+                "investors": investor_count
+            },
+            "message": "Database is working correctly!"
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Database connection failed",
+            "error": str(e)
+        }
+
+# ===================
+# ITEM ENDPOINTS
+# ===================
+
 @app.post("/items/", response_model=schemas.Item)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
     return crud.create_item(db, item)
@@ -57,68 +84,66 @@ def read_item(item_id: int, db: Session = Depends(get_db)):
 
 @app.put("/items/{item_id}", response_model=schemas.Item)
 def update_item(item_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)):
-    return crud.update_item(db, item_id, item)
+    updated_item = crud.update_item(db, item_id, item)
+    if updated_item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return updated_item
 
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db)):
     return crud.delete_item(db, item_id)
 
-# Data endpoints for testing PostgreSQL
-@app.post("/data/", response_model=schemas.Data)
-def create_data_entry(data: schemas.DataCreate, db: Session = Depends(get_db)):
-    """Create a new data entry to test PostgreSQL connection"""
-    return crud.create_data_entry(db, data)
+# ===================
+# INVESTOR ENDPOINTS
+# ===================
 
-@app.get("/data/", response_model=List[schemas.Data])
-def read_data_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all data entries"""
-    return crud.get_data_entries(db, skip=skip, limit=limit)
+@app.post("/investors/", response_model=schemas.Investor)
+def create_investor(investor: schemas.InvestorCreate, db: Session = Depends(get_db)):
+    """Create a new investor"""
+    # Check if email already exists
+    db_investor = crud.get_investor_by_email(db, email=investor.email)
+    if db_investor:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    return crud.create_investor(db, investor)
 
-@app.get("/data/{data_id}", response_model=schemas.Data)
-def read_data_entry(data_id: int, db: Session = Depends(get_db)):
-    """Get a specific data entry"""
-    db_data = crud.get_data_entry(db, data_id)
-    if db_data is None:
-        raise HTTPException(status_code=404, detail="Data entry not found")
-    return db_data
+@app.get("/investors/", response_model=List[schemas.Investor])
+def read_investors(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all investors with pagination"""
+    return crud.get_investors(db, skip=skip, limit=limit)
 
-@app.put("/data/{data_id}", response_model=schemas.Data)
-def update_data_entry(data_id: int, data: schemas.DataUpdate, db: Session = Depends(get_db)):
-    """Update a data entry"""
-    db_data = crud.update_data_entry(db, data_id, data)
-    if db_data is None:
-        raise HTTPException(status_code=404, detail="Data entry not found")
-    return db_data
+@app.get("/investors/search", response_model=List[schemas.Investor])
+def search_investors(
+    q: str = Query(..., description="Search term for name or email"),
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Search investors by name or email"""
+    return crud.search_investors(db, search_term=q, skip=skip, limit=limit)
 
-@app.delete("/data/{data_id}")
-def delete_data_entry(data_id: int, db: Session = Depends(get_db)):
-    """Delete a data entry"""
-    result = crud.delete_data_entry(db, data_id)
-    if not result.get("deleted"):
-        raise HTTPException(status_code=404, detail="Data entry not found")
-    return result
+@app.get("/investors/{investor_id}", response_model=schemas.Investor)
+def read_investor(investor_id: int, db: Session = Depends(get_db)):
+    """Get a specific investor by ID"""
+    db_investor = crud.get_investor(db, investor_id)
+    if db_investor is None:
+        raise HTTPException(status_code=404, detail="Investor not found")
+    return db_investor
 
-# Database test endpoint
-@app.get("/test-db")
-def test_database_connection(db: Session = Depends(get_db)):
-    """Test PostgreSQL connection and show table info"""
-    try:
-        # Test basic query
-        data_count = db.query(models.Data).count()
-        items_count = db.query(models.Item).count()
-        
-        # Test database connection
-        from sqlalchemy import text
-        db.execute(text("SELECT 1"))
-        
-        return {
-            "status": "success",
-            "message": "PostgreSQL connection working!",
-            "tables": {
-                "data": f"{data_count} entries",
-                "items": f"{items_count} entries"
-            },
-            "database_url": "Connected to Railway PostgreSQL" if "railway" in str(db.bind.url).lower() else "Connected to local database"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+@app.put("/investors/{investor_id}", response_model=schemas.Investor)
+def update_investor(investor_id: int, investor: schemas.InvestorUpdate, db: Session = Depends(get_db)):
+    """Update an investor"""
+    # If email is being updated, check it doesn't already exist
+    if investor.email:
+        existing_investor = crud.get_investor_by_email(db, email=investor.email)
+        if existing_investor and existing_investor.id != investor_id:
+            raise HTTPException(status_code=400, detail="Email already registered")
+    
+    updated_investor = crud.update_investor(db, investor_id, investor)
+    if updated_investor is None:
+        raise HTTPException(status_code=404, detail="Investor not found")
+    return updated_investor
+
+@app.delete("/investors/{investor_id}")
+def delete_investor(investor_id: int, db: Session = Depends(get_db)):
+    """Delete an investor"""
+    return crud.delete_investor(db, investor_id)
