@@ -5,14 +5,14 @@ from typing import List, Optional
 import os
 
 import models, schemas, crud
-from database import SessionLocal, engine
+from database import SessionLocal, engine, init_db
 
-# Create all tables (including the new 'investors' table)
-try:
-    models.Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created successfully - Tables: items, investors")
-except Exception as e:
-    print(f"❌ Database table creation failed: {e}")
+# Initialize database with force creation
+print("🔄 Initializing database...")
+if init_db():
+    print("✅ Database initialization complete - Tables: items, investors")
+else:
+    print("❌ Database initialization failed")
 
 # Create FastAPI app
 app = FastAPI(title="Co-Buy API", version="1.0.0")
@@ -147,3 +147,27 @@ def update_investor(investor_id: int, investor: schemas.InvestorUpdate, db: Sess
 def delete_investor(investor_id: int, db: Session = Depends(get_db)):
     """Delete an investor"""
     return crud.delete_investor(db, investor_id)
+
+# ===================
+# DATABASE MANAGEMENT
+# ===================
+
+@app.post("/reset-db")
+def reset_database(db: Session = Depends(get_db)):
+    """Force recreate all database tables - USE WITH CAUTION!"""
+    try:
+        # Drop all existing tables
+        models.Base.metadata.drop_all(bind=engine)
+        # Create all tables fresh
+        models.Base.metadata.create_all(bind=engine)
+        
+        return {
+            "status": "✅ Database reset successful",
+            "message": "All tables recreated including investors table",
+            "tables": ["items", "investors"]
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Database reset failed",
+            "error": str(e)
+        }
