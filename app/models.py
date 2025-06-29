@@ -9,12 +9,15 @@ class Item(Base):
     name = Column(String, index=True)
     description = Column(String)
 
-class Data(Base):
-    __tablename__ = "data"
+class Investor(Base):
+    __tablename__ = "investors"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(100), index=True, nullable=False)
-    content = Column(Text, nullable=True)
-    status = Column(String(20), default="active", index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    first_name = Column(String, nullable=False, index=True)
+    last_name = Column(String, nullable=False, index=True)
+    phone_number = Column(String, nullable=True)
+    email = Column(String, nullable=False, unique=True, index=True)
+    last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    file_type = Column(String, nullable=True)
+
+
