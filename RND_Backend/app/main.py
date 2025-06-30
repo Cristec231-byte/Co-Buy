@@ -149,6 +149,63 @@ def delete_investor(investor_id: int, db: Session = Depends(get_db)):
     return crud.delete_investor(db, investor_id)
 
 # ===================
+# JOURNAL ENDPOINTS
+# ===================
+
+@app.post("/journals/", response_model=schemas.Journal)
+def create_journal(journal: schemas.JournalCreate, db: Session = Depends(get_db)):
+    """Create a new journal"""
+    # Check if journal number already exists
+    db_journal = crud.get_journal(db, journal_number=journal.journal_number)
+    if db_journal:
+        raise HTTPException(status_code=400, detail="Journal number already exists")
+    return crud.create_journal(db, journal)
+
+@app.get("/journals/", response_model=List[schemas.Journal])
+def read_journals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all journals with pagination"""
+    return crud.get_journals(db, skip=skip, limit=limit)
+
+@app.get("/journals/search", response_model=List[schemas.Journal])
+def search_journals(
+    q: str = Query(..., description="Search term for journal number or file type"),
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Search journals by journal number or file type"""
+    return crud.search_journals(db, search_term=q, skip=skip, limit=limit)
+
+@app.get("/journals/{journal_number}", response_model=schemas.Journal)
+def read_journal(journal_number: str, db: Session = Depends(get_db)):
+    """Get a specific journal by journal number"""
+    db_journal = crud.get_journal(db, journal_number)
+    if db_journal is None:
+        raise HTTPException(status_code=404, detail="Journal not found")
+    return db_journal
+
+@app.put("/journals/{journal_number}", response_model=schemas.Journal)
+def update_journal(journal_number: str, journal: schemas.JournalUpdate, db: Session = Depends(get_db)):
+    """Update a journal"""
+    updated_journal = crud.update_journal(db, journal_number, journal)
+    if updated_journal is None:
+        raise HTTPException(status_code=404, detail="Journal not found")
+    return updated_journal
+
+@app.delete("/journals/{journal_number}")
+def delete_journal(journal_number: str, db: Session = Depends(get_db)):
+    """Delete a journal"""
+    return crud.delete_journal(db, journal_number)
+
+@app.post("/journals/{journal_number}/mark-loaded", response_model=schemas.Journal)
+def mark_journal_loaded(journal_number: str, db: Session = Depends(get_db)):
+    """Mark a journal as loaded (updates last_loaded to current time)"""
+    updated_journal = crud.update_journal_last_loaded(db, journal_number)
+    if updated_journal is None:
+        raise HTTPException(status_code=404, detail="Journal not found")
+    return updated_journal
+
+# ===================
 # DATABASE MANAGEMENT
 # ===================
 
