@@ -20,4 +20,10 @@ class Investor(Base):
     last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     file_type = Column(String, nullable=True)
 
+class Journal(Base):
+    __tablename__ = "journals"
 
+    journal_number = Column(String, primary_key=True, index=True)
+    last_loaded = Column(DateTime(timezone=True), nullable=True)
+    file_type = Column(String, nullable=False, default="CSV")
+    updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

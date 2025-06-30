@@ -75,3 +75,51 @@ def search_investors(db: Session, search_term: str, skip: int = 0, limit: int = 
         (models.Investor.last_name.ilike(f"%{search_term}%")) |
         (models.Investor.email.ilike(f"%{search_term}%"))
     ).offset(skip).limit(limit).all()
+
+# Journal CRUD operations (updated for journal_number as primary key)
+def create_journal(db: Session, journal: schemas.JournalCreate):
+    db_journal = models.Journal(**journal.model_dump())
+    db.add(db_journal)
+    db.commit()
+    db.refresh(db_journal)
+    return db_journal
+
+def get_journals(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Journal).offset(skip).limit(limit).all()
+
+def get_journal(db: Session, journal_number: str):
+    return db.query(models.Journal).filter(models.Journal.journal_number == journal_number).first()
+
+def update_journal(db: Session, journal_number: str, journal: schemas.JournalUpdate):
+    db_journal = db.query(models.Journal).filter(models.Journal.journal_number == journal_number).first()
+    if db_journal:
+        update_data = journal.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_journal, field, value)
+        # updated timestamp will be automatically updated by the database
+        db.commit()
+        db.refresh(db_journal)
+    return db_journal
+
+def delete_journal(db: Session, journal_number: str):
+    db_journal = db.query(models.Journal).filter(models.Journal.journal_number == journal_number).first()
+    if db_journal:
+        db.delete(db_journal)
+        db.commit()
+    return {"message": "Journal deleted successfully"}
+
+def search_journals(db: Session, search_term: str, skip: int = 0, limit: int = 100):
+    """Search journals by journal number or file type"""
+    return db.query(models.Journal).filter(
+        (models.Journal.journal_number.ilike(f"%{search_term}%")) |
+        (models.Journal.file_type.ilike(f"%{search_term}%"))
+    ).offset(skip).limit(limit).all()
+
+def update_journal_last_loaded(db: Session, journal_number: str):
+    """Update the last_loaded timestamp to current time"""
+    db_journal = db.query(models.Journal).filter(models.Journal.journal_number == journal_number).first()
+    if db_journal:
+        db_journal.last_loaded = func.now()
+        db.commit()
+        db.refresh(db_journal)
+    return db_journal
