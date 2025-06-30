@@ -228,3 +228,25 @@ def reset_database(db: Session = Depends(get_db)):
             "status": "❌ Database reset failed",
             "error": str(e)
         }
+
+# ===================
+# ADMIN ENDPOINTS
+# ===================
+
+@app.delete("/admin/drop-items-table")
+def drop_items_table(db: Session = Depends(get_db)):
+    """Drop the items table"""
+    try:
+        from sqlalchemy import text
+        db.execute(text("DROP TABLE IF EXISTS items CASCADE"))
+        db.commit()
+        
+        return {
+            "status": "✅ Items table dropped successfully",
+            "message": "Items table has been removed from the database"
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Failed to drop items table",
+            "error": str(e)
+        }
