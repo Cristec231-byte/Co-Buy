@@ -10,7 +10,7 @@ from database import SessionLocal, engine, init_db
 # Initialize database with force creation
 print("🔄 Initializing database...")
 if init_db():
-    print("✅ Database initialization complete - Tables: items, investors")
+    print("✅ Database initialization complete - Tables: investors, journals")
 else:
     print("❌ Database initialization failed")
 
@@ -44,16 +44,16 @@ def get_db():
 def test_database_connection(db: Session = Depends(get_db)):
     """Test PostgreSQL connection and show table info"""
     try:
-        # Count items and investors
-        item_count = db.query(models.Item).count()
+        # Count investors and journals only
         investor_count = db.query(models.Investor).count()
+        journal_count = db.query(models.Journal).count()
         
         return {
             "status": "✅ PostgreSQL connection successful",
             "database": "Railway PostgreSQL",
             "tables": {
-                "items": item_count,
-                "investors": investor_count
+                "investors": investor_count,
+                "journals": journal_count
             },
             "message": "Database is working correctly!"
         }
@@ -62,36 +62,6 @@ def test_database_connection(db: Session = Depends(get_db)):
             "status": "❌ Database connection failed",
             "error": str(e)
         }
-
-# ===================
-# ITEM ENDPOINTS
-# ===================
-
-@app.post("/items/", response_model=schemas.Item)
-def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
-    return crud.create_item(db, item)
-
-@app.get("/items/", response_model=List[schemas.Item])
-def read_items(db: Session = Depends(get_db)):
-    return crud.get_items(db)
-
-@app.get("/items/{item_id}", response_model=schemas.Item)
-def read_item(item_id: int, db: Session = Depends(get_db)):
-    db_item = crud.get_item(db, item_id)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return db_item
-
-@app.put("/items/{item_id}", response_model=schemas.Item)
-def update_item(item_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)):
-    updated_item = crud.update_item(db, item_id, item)
-    if updated_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return updated_item
-
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int, db: Session = Depends(get_db)):
-    return crud.delete_item(db, item_id)
 
 # ===================
 # INVESTOR ENDPOINTS
@@ -220,8 +190,8 @@ def reset_database(db: Session = Depends(get_db)):
         
         return {
             "status": "✅ Database reset successful",
-            "message": "All tables recreated including investors table",
-            "tables": ["items", "investors"]
+            "message": "All tables recreated - investors and journals only",
+            "tables": ["investors", "journals"]
         }
     except Exception as e:
         return {
@@ -244,6 +214,40 @@ def drop_items_table(db: Session = Depends(get_db)):
         return {
             "status": "✅ Items table dropped successfully",
             "message": "Items table has been removed from the database"
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Failed to drop items table",
+            "error": str(e)
+        }
+
+@app.delete("/admin/force-drop-items")
+def force_drop_items_table(db: Session = Depends(get_db)):
+    """Force drop the items table using direct SQL"""
+    try:
+        from sqlalchemy import text
+        
+        # First, check if table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'items'
+            );
+        """))
+        table_exists = result.scalar()
+        
+        if table_exists:
+            # Drop the table
+            db.execute(text("DROP TABLE items CASCADE"))
+            db.commit()
+            message = "Items table found and dropped successfully"
+        else:
+            message = "Items table does not exist"
+        
+        return {
+            "status": "✅ Operation completed",
+            "message": message,
+            "table_existed": table_exists
         }
     except Exception as e:
         return {
