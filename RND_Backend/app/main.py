@@ -39,7 +39,7 @@ def health_check():
         "message": "Co-Buy API is running",
         "database": db_status,
         "database_info": database_info,
-        "tables": "Test table available - use /admin/create-tables to create"
+        "tables": "Data table available - use /admin/create-tables to create"
     }
 
 # Dependency to get DB session
@@ -63,7 +63,7 @@ def test_database_connection_endpoint(db: Session = Depends(get_db)):
             "status": "✅ PostgreSQL connection successful",
             "database": "Railway PostgreSQL",
             "postgresql_version": pg_version,
-            "tables": "Test table available - use /admin/create-tables to create",
+            "tables": "Data table available - use /admin/create-tables to create",
             "message": "Database connection is working correctly!"
         }
     except Exception as e:
@@ -126,8 +126,8 @@ def create_tables():
         models.Base.metadata.create_all(bind=engine)
         return {
             "status": "✅ Tables created successfully",
-            "message": "Test table created",
-            "tables": ["test_table"]
+            "message": "Data table created",
+            "tables": ["data"]
         }
     except Exception as e:
         return {
@@ -135,37 +135,30 @@ def create_tables():
             "error": str(e)
         }
 
-# Test table API endpoints
-@app.post("/test-items/", response_model=schemas.TestTableResponse)
-def create_test_item(test_item: schemas.TestTableCreate, db: Session = Depends(get_db)):
-    """Create a new test item"""
-    return crud.create_test_item(db=db, test_item=test_item)
+# Data table API endpoints
+@app.post("/data/", response_model=schemas.DataResponse)
+def create_data_item(data_item: schemas.DataCreate, db: Session = Depends(get_db)):
+    """Create a new data item"""
+    return crud.create_data_item(db=db, data_item=data_item)
 
-@app.get("/test-items/", response_model=List[schemas.TestTableResponse])
-def read_test_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all test items"""
-    return crud.get_test_items(db=db, skip=skip, limit=limit)
+@app.get("/data/", response_model=List[schemas.DataResponse])
+def read_data_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all data items"""
+    return crud.get_data_items(db=db, skip=skip, limit=limit)
 
-@app.get("/test-items/{item_id}", response_model=schemas.TestTableResponse)
-def read_test_item(item_id: int, db: Session = Depends(get_db)):
-    """Get a specific test item"""
-    db_item = crud.get_test_item(db=db, item_id=item_id)
+@app.get("/data/{item_id}", response_model=schemas.DataResponse)
+def read_data_item(item_id: int, db: Session = Depends(get_db)):
+    """Get a specific data item"""
+    db_item = crud.get_data_item(db=db, item_id=item_id)
     if db_item is None:
-        raise HTTPException(status_code=404, detail="Test item not found")
+        raise HTTPException(status_code=404, detail="Data item not found")
     return db_item
 
-@app.put("/test-items/{item_id}", response_model=schemas.TestTableResponse)
-def update_test_item(item_id: int, test_item: schemas.TestTableUpdate, db: Session = Depends(get_db)):
-    """Update a test item"""
-    db_item = crud.update_test_item(db=db, item_id=item_id, test_item=test_item)
+@app.delete("/data/{item_id}")
+def delete_data_item(item_id: int, db: Session = Depends(get_db)):
+    """Delete a data item"""
+    db_item = crud.delete_data_item(db=db, item_id=item_id)
     if db_item is None:
-        raise HTTPException(status_code=404, detail="Test item not found")
-    return db_item
-
-@app.delete("/test-items/{item_id}")
-def delete_test_item(item_id: int, db: Session = Depends(get_db)):
-    """Delete a test item"""
-    db_item = crud.delete_test_item(db=db, item_id=item_id)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Test item not found")
+        raise HTTPException(status_code=404, detail="Data item not found")
+    return {"message": "Data item deleted successfully"}
     return {"message": "Test item deleted successfully"}
