@@ -224,26 +224,158 @@ def check_table_status(db: Session = Depends(get_db)):
 def insert_id_1(db: Session = Depends(get_db)):
     """Insert ID '1' into the data table"""
     try:
+        print("🔍 Attempting to insert ID 1 into data table...")
+        
         # Check if ID 1 already exists
         existing_item = crud.get_data_item(db=db, item_id=1)
         if existing_item:
+            print(f"⚠️  ID 1 already exists: {existing_item.id}")
             return {
                 "status": "⚠️ ID 1 already exists",
                 "message": "Data item with ID 1 already exists in the table",
                 "existing_item": {"id": existing_item.id}
             }
         
+        print("✅ ID 1 doesn't exist, creating new item...")
+        
         # Create new item with ID 1
         new_item = crud.create_data_item_with_id(db=db, item_id=1)
+        print(f"✅ Successfully created item with ID: {new_item.id}")
+        
+        # Verify it was actually inserted
+        verify_item = crud.get_data_item(db=db, item_id=1)
+        if verify_item:
+            print(f"✅ Verification successful: Item with ID {verify_item.id} found")
+        else:
+            print("❌ Verification failed: Item not found after insertion")
+        
         return {
             "status": "✅ ID 1 inserted successfully",
             "message": "Data item with ID 1 created",
-            "item": {"id": new_item.id}
+            "item": {"id": new_item.id},
+            "verification": "Success" if verify_item else "Failed"
         }
     except Exception as e:
+        print(f"❌ Error inserting ID 1: {str(e)}")
         return {
             "status": "❌ Failed to insert ID 1",
-            "error": str(e)
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+# Direct SQL insert for testing
+@app.post("/admin/direct-insert-1")
+def direct_insert_id_1(db: Session = Depends(get_db)):
+    """Direct SQL insert ID '1' into the data table"""
+    try:
+        from sqlalchemy import text
+        
+        print("🔍 Attempting direct SQL insert of ID 1...")
+        
+        # Check if table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'data'
+            );
+        """))
+        table_exists = result.scalar()
+        
+        if not table_exists:
+            return {
+                "status": "❌ Table doesn't exist",
+                "message": "Data table doesn't exist. Create it first."
+            }
+        
+        # Check if ID 1 already exists
+        result = db.execute(text("SELECT COUNT(*) FROM data WHERE id = 1"))
+        count = result.scalar()
+        
+        if count > 0:
+            return {
+                "status": "⚠️ ID 1 already exists",
+                "message": "Data item with ID 1 already exists"
+            }
+        
+        # Direct SQL insert
+        db.execute(text("INSERT INTO data (id) VALUES (1)"))
+        db.commit()
+        
+        # Verify insertion
+        result = db.execute(text("SELECT id FROM data WHERE id = 1"))
+        inserted_id = result.scalar()
+        
+        print(f"✅ Direct SQL insert successful: ID {inserted_id}")
+        
+        return {
+            "status": "✅ Direct SQL insert successful",
+            "message": "ID 1 inserted using direct SQL",
+            "inserted_id": inserted_id
+        }
+        
+    except Exception as e:
+        print(f"❌ Direct SQL insert failed: {str(e)}")
+        return {
+            "status": "❌ Direct SQL insert failed",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+# Check what's actually in the data table
+@app.get("/admin/inspect-data-table")
+def inspect_data_table(db: Session = Depends(get_db)):
+    """Inspect the contents of the data table"""
+    try:
+        from sqlalchemy import text
+        
+        # Check if table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'data'
+            );
+        """))
+        table_exists = result.scalar()
+        
+        if not table_exists:
+            return {
+                "status": "❌ Table doesn't exist",
+                "message": "Data table doesn't exist in the database"
+            }
+        
+        # Get table structure
+        result = db.execute(text("""
+            SELECT column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'data'
+            ORDER BY ordinal_position
+        """))
+        columns = [dict(row._mapping) for row in result.fetchall()]
+        
+        # Get all data from the table
+        result = db.execute(text("SELECT * FROM data"))
+        all_data = [dict(row._mapping) for row in result.fetchall()]
+        
+        # Get row count
+        result = db.execute(text("SELECT COUNT(*) FROM data"))
+        row_count = result.scalar()
+        
+        return {
+            "status": "✅ Table inspection complete",
+            "table_exists": table_exists,
+            "table_structure": columns,
+            "row_count": row_count,
+            "all_data": all_data,
+            "message": f"Data table has {row_count} rows"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "❌ Failed to inspect table",
+            "error": str(e),
+            "error_type": type(e).__name__
         }
 
 # Data table API endpoints
@@ -282,4 +414,3 @@ def delete_data_item(item_id: int, db: Session = Depends(get_db)):
     if db_item is None:
         raise HTTPException(status_code=404, detail="Data item not found")
     return {"message": "Data item deleted successfully"}
-    return {"message": "Test item deleted successfully"}
