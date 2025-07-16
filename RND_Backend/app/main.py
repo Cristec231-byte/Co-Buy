@@ -24,6 +24,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Create tables on startup
+@app.on_event("startup")
+async def startup_event():
+    """Create database tables on startup"""
+    try:
+        print("🔧 Creating database tables...")
+        models.Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"❌ Failed to create tables on startup: {e}")
+        
+    # Test database connection
+    try:
+        if check_database_connection():
+            print("✅ Database connection successful")
+        else:
+            print("❌ Database connection failed")
+    except Exception as e:
+        print(f"❌ Database connection test failed: {e}")
+
 # Health check endpoint
 @app.get("/")
 def health_check():
@@ -39,7 +59,7 @@ def health_check():
         "message": "Co-Buy API is running",
         "database": db_status,
         "database_info": database_info,
-        "tables": "Data table available - use /admin/create-tables to create"
+        "tables": "Data table should be auto-created on startup"
     }
 
 # Dependency to get DB session
@@ -63,7 +83,7 @@ def test_database_connection_endpoint(db: Session = Depends(get_db)):
             "status": "✅ PostgreSQL connection successful",
             "database": "Railway PostgreSQL",
             "postgresql_version": pg_version,
-            "tables": "Data table available - use /admin/create-tables to create",
+            "tables": "Data table should be auto-created on startup",
             "message": "Database connection is working correctly!"
         }
     except Exception as e:
@@ -159,6 +179,43 @@ def create_tables():
     except Exception as e:
         return {
             "status": "❌ Failed to create tables",
+            "error": str(e)
+        }
+
+# Check table status endpoint
+@app.get("/admin/table-status")
+def check_table_status(db: Session = Depends(get_db)):
+    """Check if tables exist in the database"""
+    try:
+        from sqlalchemy import text
+        
+        # Check if data table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'data'
+            );
+        """))
+        
+        data_table_exists = result.scalar()
+        
+        # Get all tables
+        result = db.execute(text("""
+            SELECT tablename FROM pg_tables 
+            WHERE schemaname = 'public'
+        """))
+        all_tables = [row[0] for row in result.fetchall()]
+        
+        return {
+            "status": "✅ Table status retrieved",
+            "data_table_exists": data_table_exists,
+            "all_tables": all_tables,
+            "table_count": len(all_tables)
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Failed to check table status",
             "error": str(e)
         }
 
