@@ -386,6 +386,184 @@ def insert_id_5(db: Session = Depends(get_db)):
             "error_type": type(e).__name__
         }
 
+# Flexible data insertion route
+@app.post("/admin/insert-data")
+def insert_data(
+    id: Optional[int] = None,
+    auto_generate: bool = True,
+    db: Session = Depends(get_db)
+):
+    """
+    Flexible FastAPI route to insert data into the data table
+    
+    Parameters:
+    - id: Optional specific ID to insert
+    - auto_generate: If True, auto-generates ID; if False, requires specific ID
+    """
+    try:
+        from sqlalchemy import text
+        
+        print(f"🔍 Insert data request - ID: {id}, Auto-generate: {auto_generate}")
+        
+        # Check if table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'data'
+            );
+        """))
+        table_exists = result.scalar()
+        
+        if not table_exists:
+            return {
+                "status": "❌ Table doesn't exist",
+                "message": "Data table doesn't exist. Create it first with /admin/create-tables"
+            }
+        
+        # Handle different insertion scenarios
+        if auto_generate:
+            # Auto-generate ID (default behavior)
+            result = db.execute(text("INSERT INTO data DEFAULT VALUES RETURNING id"))
+            inserted_id = result.scalar()
+            db.commit()
+            
+            print(f"✅ Auto-generated ID: {inserted_id}")
+            
+            return {
+                "status": "✅ Data inserted successfully",
+                "message": "Data item created with auto-generated ID",
+                "inserted_id": inserted_id,
+                "method": "auto_generate"
+            }
+        
+        elif id is not None:
+            # Insert specific ID
+            # Check if ID already exists
+            result = db.execute(text("SELECT COUNT(*) FROM data WHERE id = :id"), {"id": id})
+            count = result.scalar()
+            
+            if count > 0:
+                return {
+                    "status": "⚠️ ID already exists",
+                    "message": f"Data item with ID {id} already exists in the table",
+                    "existing_id": id
+                }
+            
+            # Insert specific ID
+            db.execute(text("INSERT INTO data (id) VALUES (:id)"), {"id": id})
+            db.commit()
+            
+            print(f"✅ Specific ID inserted: {id}")
+            
+            return {
+                "status": "✅ Data inserted successfully",
+                "message": f"Data item created with ID {id}",
+                "inserted_id": id,
+                "method": "specific_id"
+            }
+        
+        else:
+            return {
+                "status": "❌ Invalid parameters",
+                "message": "Either enable auto_generate or provide a specific ID"
+            }
+            
+    except Exception as e:
+        print(f"❌ Error inserting data: {str(e)}")
+        return {
+            "status": "❌ Failed to insert data",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+# Bulk data insertion route
+@app.post("/admin/bulk-insert")
+def bulk_insert_data(
+    count: int = 5,
+    start_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk insert multiple data items
+    
+    Parameters:
+    - count: Number of items to insert (default: 5)
+    - start_id: Starting ID for sequential insertion (optional)
+    """
+    try:
+        from sqlalchemy import text
+        
+        print(f"🔍 Bulk insert request - Count: {count}, Start ID: {start_id}")
+        
+        # Check if table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'data'
+            );
+        """))
+        table_exists = result.scalar()
+        
+        if not table_exists:
+            return {
+                "status": "❌ Table doesn't exist",
+                "message": "Data table doesn't exist. Create it first with /admin/create-tables"
+            }
+        
+        # Validate count
+        if count <= 0 or count > 100:
+            return {
+                "status": "❌ Invalid count",
+                "message": "Count must be between 1 and 100"
+            }
+        
+        inserted_ids = []
+        
+        if start_id is not None:
+            # Insert with sequential IDs
+            for i in range(count):
+                current_id = start_id + i
+                
+                # Check if ID already exists
+                result = db.execute(text("SELECT COUNT(*) FROM data WHERE id = :id"), {"id": current_id})
+                if result.scalar() > 0:
+                    print(f"⚠️  ID {current_id} already exists, skipping")
+                    continue
+                
+                # Insert the ID
+                db.execute(text("INSERT INTO data (id) VALUES (:id)"), {"id": current_id})
+                inserted_ids.append(current_id)
+            
+            db.commit()
+            
+        else:
+            # Insert with auto-generated IDs
+            for i in range(count):
+                result = db.execute(text("INSERT INTO data DEFAULT VALUES RETURNING id"))
+                inserted_id = result.scalar()
+                inserted_ids.append(inserted_id)
+            
+            db.commit()
+        
+        print(f"✅ Bulk insert completed: {len(inserted_ids)} items inserted")
+        
+        return {
+            "status": "✅ Bulk insert completed",
+            "message": f"Successfully inserted {len(inserted_ids)} data items",
+            "inserted_ids": inserted_ids,
+            "total_inserted": len(inserted_ids)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in bulk insert: {str(e)}")
+        return {
+            "status": "❌ Bulk insert failed",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
 # Check what's actually in the data table
 @app.get("/admin/inspect-data-table")
 def inspect_data_table(db: Session = Depends(get_db)):
