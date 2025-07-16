@@ -9,7 +9,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 # Handle empty or missing DATABASE_URL
 if not DATABASE_URL or DATABASE_URL.strip() == "":
     # Fallback to Railway internal connection
-    DATABASE_URL = "postgresql://postgres:pPhqSquMxbQSnkoljCvXPAMoOJnHFFyB@postgres.railway.internal:5432/railway"
+    DATABASE_URL = "postgresql://postgres:oZBIUJJsalbIByKTitkNlYHZwOuEdNac@postgres.railway.internal:5432/railway"
     print("⚠️  No DATABASE_URL found, using Railway internal connection")
 else:
     print(f"🔗 Using DATABASE_URL: {DATABASE_URL[:50]}...")
