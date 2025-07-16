@@ -219,11 +219,48 @@ def check_table_status(db: Session = Depends(get_db)):
             "error": str(e)
         }
 
+# Insert ID "1" into data table
+@app.post("/admin/insert-id-1")
+def insert_id_1(db: Session = Depends(get_db)):
+    """Insert ID '1' into the data table"""
+    try:
+        # Check if ID 1 already exists
+        existing_item = crud.get_data_item(db=db, item_id=1)
+        if existing_item:
+            return {
+                "status": "⚠️ ID 1 already exists",
+                "message": "Data item with ID 1 already exists in the table",
+                "existing_item": {"id": existing_item.id}
+            }
+        
+        # Create new item with ID 1
+        new_item = crud.create_data_item_with_id(db=db, item_id=1)
+        return {
+            "status": "✅ ID 1 inserted successfully",
+            "message": "Data item with ID 1 created",
+            "item": {"id": new_item.id}
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Failed to insert ID 1",
+            "error": str(e)
+        }
+
 # Data table API endpoints
 @app.post("/data/", response_model=schemas.DataResponse)
 def create_data_item(data_item: schemas.DataCreate, db: Session = Depends(get_db)):
     """Create a new data item"""
     return crud.create_data_item(db=db, data_item=data_item)
+
+@app.post("/data/insert-id/{item_id}", response_model=schemas.DataResponse)
+def create_data_item_with_id(item_id: int, db: Session = Depends(get_db)):
+    """Create a data item with a specific ID"""
+    try:
+        return crud.create_data_item_with_id(db=db, item_id=item_id)
+    except Exception as e:
+        if "duplicate key" in str(e).lower():
+            raise HTTPException(status_code=400, detail=f"Data item with ID {item_id} already exists")
+        raise HTTPException(status_code=500, detail=f"Failed to create data item: {str(e)}")
 
 @app.get("/data/", response_model=List[schemas.DataResponse])
 def read_data_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

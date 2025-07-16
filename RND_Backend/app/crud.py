@@ -10,6 +10,14 @@ def create_data_item(db: Session, data_item: schemas.DataCreate):
     db.refresh(db_item)
     return db_item
 
+def create_data_item_with_id(db: Session, item_id: int):
+    """Create a data item with a specific ID"""
+    db_item = models.Data(id=item_id)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
 def get_data_item(db: Session, item_id: int):
     return db.query(models.Data).filter(models.Data.id == item_id).first()
 
