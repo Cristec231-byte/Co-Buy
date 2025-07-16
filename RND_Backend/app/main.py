@@ -322,6 +322,70 @@ def direct_insert_id_1(db: Session = Depends(get_db)):
             "error_type": type(e).__name__
         }
 
+# Insert ID "5" into data table
+@app.post("/admin/insert-id-5")
+def insert_id_5(db: Session = Depends(get_db)):
+    """Insert ID '5' into the data table"""
+    try:
+        from sqlalchemy import text
+        
+        print("🔍 Attempting to insert ID 5 into data table...")
+        
+        # Check if table exists
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'data'
+            );
+        """))
+        table_exists = result.scalar()
+        
+        if not table_exists:
+            return {
+                "status": "❌ Table doesn't exist",
+                "message": "Data table doesn't exist. Create it first with /admin/create-tables"
+            }
+        
+        # Check if ID 5 already exists
+        result = db.execute(text("SELECT COUNT(*) FROM data WHERE id = 5"))
+        count = result.scalar()
+        
+        if count > 0:
+            return {
+                "status": "⚠️ ID 5 already exists",
+                "message": "Data item with ID 5 already exists in the table"
+            }
+        
+        # Direct SQL insert of ID 5
+        db.execute(text("INSERT INTO data (id) VALUES (5)"))
+        db.commit()
+        
+        # Verify insertion
+        result = db.execute(text("SELECT id FROM data WHERE id = 5"))
+        inserted_id = result.scalar()
+        
+        # Get updated count
+        result = db.execute(text("SELECT COUNT(*) FROM data"))
+        total_count = result.scalar()
+        
+        print(f"✅ ID 5 inserted successfully: {inserted_id}")
+        
+        return {
+            "status": "✅ ID 5 inserted successfully",
+            "message": "Data item with ID 5 created using direct SQL",
+            "inserted_id": inserted_id,
+            "total_rows": total_count
+        }
+        
+    except Exception as e:
+        print(f"❌ Error inserting ID 5: {str(e)}")
+        return {
+            "status": "❌ Failed to insert ID 5",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
 # Check what's actually in the data table
 @app.get("/admin/inspect-data-table")
 def inspect_data_table(db: Session = Depends(get_db)):
