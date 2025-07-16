@@ -5,14 +5,7 @@ from typing import List, Optional
 import os
 
 import models, schemas, crud
-from database import SessionLocal, engine, init_db
-
-# Initialize database with force creation
-print("🔄 Initializing database...")
-if init_db():
-    print("✅ Database initialization complete - Tables: investors, journals")
-else:
-    print("❌ Database initialization failed")
+from database import SessionLocal, engine, check_database_connection
 
 # Create FastAPI app
 app = FastAPI(title="Co-Buy API", version="1.0.0")
@@ -29,7 +22,13 @@ app.add_middleware(
 # Health check endpoint
 @app.get("/")
 def health_check():
-    return {"status": "healthy", "message": "Co-Buy API is running"}
+    db_status = "healthy" if check_database_connection() else "unhealthy"
+    return {
+        "status": "healthy", 
+        "message": "Co-Buy API is running",
+        "database": db_status,
+        "tables": "All tables removed - clean database"
+    }
 
 # Dependency to get DB session
 def get_db():
@@ -41,21 +40,19 @@ def get_db():
 
 # Test database connection
 @app.get("/test-db")
-def test_database_connection(db: Session = Depends(get_db)):
-    """Test PostgreSQL connection and show table info"""
+def test_database_connection_endpoint(db: Session = Depends(get_db)):
+    """Test PostgreSQL connection"""
     try:
-        # Count investors and journals only
-        investor_count = db.query(models.Investor).count()
-        journal_count = db.query(models.Journal).count()
+        from sqlalchemy import text
+        result = db.execute(text("SELECT version()"))
+        pg_version = result.scalar()
         
         return {
             "status": "✅ PostgreSQL connection successful",
             "database": "Railway PostgreSQL",
-            "tables": {
-                "investors": investor_count,
-                "journals": journal_count
-            },
-            "message": "Database is working correctly!"
+            "postgresql_version": pg_version,
+            "tables": "All tables removed - clean database",
+            "message": "Database connection is working correctly!"
         }
     except Exception as e:
         return {
@@ -63,194 +60,33 @@ def test_database_connection(db: Session = Depends(get_db)):
             "error": str(e)
         }
 
-# ===================
-# INVESTOR ENDPOINTS
-# ===================
-
-@app.post("/investors/", response_model=schemas.Investor)
-def create_investor(investor: schemas.InvestorCreate, db: Session = Depends(get_db)):
-    """Create a new investor"""
-    # Check if email already exists
-    db_investor = crud.get_investor_by_email(db, email=investor.email)
-    if db_investor:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    return crud.create_investor(db, investor)
-
-@app.get("/investors/", response_model=List[schemas.Investor])
-def read_investors(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all investors with pagination"""
-    return crud.get_investors(db, skip=skip, limit=limit)
-
-@app.get("/investors/search", response_model=List[schemas.Investor])
-def search_investors(
-    q: str = Query(..., description="Search term for name or email"),
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db)
-):
-    """Search investors by name or email"""
-    return crud.search_investors(db, search_term=q, skip=skip, limit=limit)
-
-@app.get("/investors/{investor_id}", response_model=schemas.Investor)
-def read_investor(investor_id: int, db: Session = Depends(get_db)):
-    """Get a specific investor by ID"""
-    db_investor = crud.get_investor(db, investor_id)
-    if db_investor is None:
-        raise HTTPException(status_code=404, detail="Investor not found")
-    return db_investor
-
-@app.put("/investors/{investor_id}", response_model=schemas.Investor)
-def update_investor(investor_id: int, investor: schemas.InvestorUpdate, db: Session = Depends(get_db)):
-    """Update an investor"""
-    # If email is being updated, check it doesn't already exist
-    if investor.email:
-        existing_investor = crud.get_investor_by_email(db, email=investor.email)
-        if existing_investor and existing_investor.id != investor_id:
-            raise HTTPException(status_code=400, detail="Email already registered")
-    
-    updated_investor = crud.update_investor(db, investor_id, investor)
-    if updated_investor is None:
-        raise HTTPException(status_code=404, detail="Investor not found")
-    return updated_investor
-
-@app.delete("/investors/{investor_id}")
-def delete_investor(investor_id: int, db: Session = Depends(get_db)):
-    """Delete an investor"""
-    return crud.delete_investor(db, investor_id)
-
-# ===================
-# JOURNAL ENDPOINTS
-# ===================
-
-@app.post("/journals/", response_model=schemas.Journal)
-def create_journal(journal: schemas.JournalCreate, db: Session = Depends(get_db)):
-    """Create a new journal"""
-    # Check if journal number already exists
-    db_journal = crud.get_journal(db, journal_number=journal.journal_number)
-    if db_journal:
-        raise HTTPException(status_code=400, detail="Journal number already exists")
-    return crud.create_journal(db, journal)
-
-@app.get("/journals/", response_model=List[schemas.Journal])
-def read_journals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all journals with pagination"""
-    return crud.get_journals(db, skip=skip, limit=limit)
-
-@app.get("/journals/search", response_model=List[schemas.Journal])
-def search_journals(
-    q: str = Query(..., description="Search term for journal number or file type"),
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db)
-):
-    """Search journals by journal number or file type"""
-    return crud.search_journals(db, search_term=q, skip=skip, limit=limit)
-
-@app.get("/journals/{journal_number}", response_model=schemas.Journal)
-def read_journal(journal_number: str, db: Session = Depends(get_db)):
-    """Get a specific journal by journal number"""
-    db_journal = crud.get_journal(db, journal_number)
-    if db_journal is None:
-        raise HTTPException(status_code=404, detail="Journal not found")
-    return db_journal
-
-@app.put("/journals/{journal_number}", response_model=schemas.Journal)
-def update_journal(journal_number: str, journal: schemas.JournalUpdate, db: Session = Depends(get_db)):
-    """Update a journal"""
-    updated_journal = crud.update_journal(db, journal_number, journal)
-    if updated_journal is None:
-        raise HTTPException(status_code=404, detail="Journal not found")
-    return updated_journal
-
-@app.delete("/journals/{journal_number}")
-def delete_journal(journal_number: str, db: Session = Depends(get_db)):
-    """Delete a journal"""
-    return crud.delete_journal(db, journal_number)
-
-@app.post("/journals/{journal_number}/mark-loaded", response_model=schemas.Journal)
-def mark_journal_loaded(journal_number: str, db: Session = Depends(get_db)):
-    """Mark a journal as loaded (updates last_loaded to current time)"""
-    updated_journal = crud.update_journal_last_loaded(db, journal_number)
-    if updated_journal is None:
-        raise HTTPException(status_code=404, detail="Journal not found")
-    return updated_journal
-
-# ===================
-# DATABASE MANAGEMENT
-# ===================
-
-@app.post("/reset-db")
-def reset_database(db: Session = Depends(get_db)):
-    """Force recreate all database tables - USE WITH CAUTION!"""
-    try:
-        # Drop all existing tables
-        models.Base.metadata.drop_all(bind=engine)
-        # Create all tables fresh
-        models.Base.metadata.create_all(bind=engine)
-        
-        return {
-            "status": "✅ Database reset successful",
-            "message": "All tables recreated - investors and journals only",
-            "tables": ["investors", "journals"]
-        }
-    except Exception as e:
-        return {
-            "status": "❌ Database reset failed",
-            "error": str(e)
-        }
-
-# ===================
-# ADMIN ENDPOINTS
-# ===================
-
-@app.delete("/admin/drop-items-table")
-def drop_items_table(db: Session = Depends(get_db)):
-    """Drop the items table"""
+# Drop all tables endpoint
+@app.post("/admin/drop-all-tables")
+def drop_all_tables(db: Session = Depends(get_db)):
+    """Drop all existing tables"""
     try:
         from sqlalchemy import text
-        db.execute(text("DROP TABLE IF EXISTS items CASCADE"))
+        
+        # Get all table names
+        result = db.execute(text("""
+            SELECT tablename FROM pg_tables 
+            WHERE schemaname = 'public'
+        """))
+        tables = [row[0] for row in result.fetchall()]
+        
+        # Drop each table
+        for table in tables:
+            db.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+        
         db.commit()
         
         return {
-            "status": "✅ Items table dropped successfully",
-            "message": "Items table has been removed from the database"
+            "status": "✅ All tables dropped successfully",
+            "message": f"Dropped {len(tables)} tables",
+            "tables_dropped": tables
         }
     except Exception as e:
         return {
-            "status": "❌ Failed to drop items table",
-            "error": str(e)
-        }
-
-@app.delete("/admin/force-drop-items")
-def force_drop_items_table(db: Session = Depends(get_db)):
-    """Force drop the items table using direct SQL"""
-    try:
-        from sqlalchemy import text
-        
-        # First, check if table exists
-        result = db.execute(text("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'items'
-            );
-        """))
-        table_exists = result.scalar()
-        
-        if table_exists:
-            # Drop the table
-            db.execute(text("DROP TABLE items CASCADE"))
-            db.commit()
-            message = "Items table found and dropped successfully"
-        else:
-            message = "Items table does not exist"
-        
-        return {
-            "status": "✅ Operation completed",
-            "message": message,
-            "table_existed": table_exists
-        }
-    except Exception as e:
-        return {
-            "status": "❌ Failed to drop items table",
+            "status": "❌ Failed to drop tables",
             "error": str(e)
         }
