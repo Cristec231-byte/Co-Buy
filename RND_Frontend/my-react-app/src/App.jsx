@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom'; // ✅ required for <Link>
 import AnimatedBackground from './assets/AnimatedBackground';
 import './App.css';
 import logo from './assets/logo.png';
@@ -42,7 +43,15 @@ const App = () => {
             </button>
           </form>
 
-          <p className="text-white/70 mt-6 md:text-[20px] pt-20">👤 Admin</p>
+          
+          {/* 👤 Admin Link */}
+          <Link
+            to="/admin"
+            className="text-white/70 mt-6 md:text-[20px] pt-20 hover:text-white transition-colors"
+          >
+            👤 Admin
+          </Link>
+         
         </div>
       </div>
     </div>
