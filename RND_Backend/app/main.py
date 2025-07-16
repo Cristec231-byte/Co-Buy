@@ -76,15 +76,42 @@ def test_database_connection_endpoint(db: Session = Depends(get_db)):
 @app.get("/debug")
 def debug_info():
     """Debug information for Railway deployment"""
+    import psutil
+    import platform
+    
+    # Check environment variables
+    env_vars = {}
+    railway_vars = [
+        "DATABASE_URL", "RAILWAY_ENVIRONMENT", "PORT", 
+        "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_DEPLOYMENT_ID"
+    ]
+    
+    for var in railway_vars:
+        value = os.environ.get(var)
+        if var == "DATABASE_URL" and value:
+            # Mask password in DATABASE_URL
+            env_vars[var] = f"Set (length: {len(value)})"
+        else:
+            env_vars[var] = value or "Not set"
+    
+    # Database connection test
+    try:
+        db_test = check_database_connection()
+        db_status = "✅ Connected" if db_test else "❌ Failed"
+    except Exception as e:
+        db_status = f"❌ Error: {str(e)}"
+    
     return {
-        "environment_variables": {
-            "DATABASE_URL": "Set" if os.environ.get("DATABASE_URL") else "Not set",
-            "RAILWAY_ENVIRONMENT": os.environ.get("RAILWAY_ENVIRONMENT", "Not set"),
-            "PORT": os.environ.get("PORT", "Not set")
+        "system_info": {
+            "platform": platform.platform(),
+            "python_version": platform.python_version(),
+            "working_directory": os.getcwd()
         },
-        "database_url_length": len(os.environ.get("DATABASE_URL", "")),
-        "python_path": os.getcwd(),
-        "message": "Debug info for Railway deployment"
+        "environment_variables": env_vars,
+        "database_status": db_status,
+        "memory_usage": f"{psutil.virtual_memory().percent}%",
+        "railway_deployment": "Active" if os.environ.get("RAILWAY_ENVIRONMENT") else "Local",
+        "message": "Comprehensive Railway deployment diagnostics"
     }
 
 # Drop all tables endpoint
