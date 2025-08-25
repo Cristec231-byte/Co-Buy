@@ -8,31 +8,28 @@ import { EnvelopeIcon } from '@heroicons/react/24/solid';
 const App = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-    setIsSuccess(false);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/auth/request-magic-link', {
+      const response = await fetch('http://127.0.0.1:8000/request-magic-link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Email: email }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ Email: email }), // must match FastAPI model
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMessage(`Magic link sent! Check your email to login.`);
-        setIsSuccess(true);
-      } else if (response.status === 404) {
-        setMessage(`User not found. Please check the email you entered.`);
+        setMessage(`Magic link sent! Check your email or click here: ${data.link}`);
       } else {
-        setMessage(`Error: ${data.detail || 'Something went wrong'}`);
+        setMessage(`Error: ${data.detail}`);
       }
     } catch (err) {
       setMessage(`Request failed: ${err.message}`);
@@ -87,14 +84,17 @@ const App = () => {
           </form>
 
           {message && (
-            <p
-              className={`mt-4 text-center md:text-[16px] break-words ${
-                isSuccess ? 'text-green-400' : 'text-red-400'
-              }`}
-            >
+            <p className="text-white mt-4 text-center md:text-[16px] break-words">
               {message}
             </p>
           )}
+
+          <Link
+            to="/admin"
+            className="text-white/70 mt-6 md:text-[20px] pt-20 hover:text-white transition-colors"
+          >
+            👤 Admin
+          </Link>
         </div>
       </div>
     </div>
