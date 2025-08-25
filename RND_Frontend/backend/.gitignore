@@ -1,2 +1,22 @@
-.env
-backend/.env
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+
+# Ignore environment variables
+*.env
+.env/
+**/.env
+
+# VSCode settings
+.vscode/
+
+# Python virtual environments
+venv/
+env/
+
+# Node.js dependencies
+my-react-app/node_modules/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
