@@ -5,6 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import re  # 👈 added for regex replacement
 
 router = APIRouter()
 
@@ -25,13 +26,23 @@ def request_magic_link(data: MagicLinkRequest):
         payload = {
             "type": "magiclink",
             "email": email,
-            "redirect_to": "http://localhost:5173/dashboard"  # frontend route after login
+            "redirect_to": "http://localhost:5173/dashboard"
         }
         link_info = supabase.auth.admin.generate_link(payload)
 
         action_link = getattr(link_info.properties, "action_link", None)
         if not action_link:
             raise HTTPException(status_code=500, detail="Magic link generation failed")
+
+        # 🔧 Force redirect_to override
+        if "redirect_to=" in action_link:
+            action_link = re.sub(
+                r"redirect_to=[^&]+",
+                "redirect_to=http://localhost:5173/dashboard",
+                action_link
+            )
+        else:
+            action_link += "&redirect_to=http://localhost:5173/dashboard"
 
         # -------------------------------
         # Send email via SMTP
@@ -44,7 +55,6 @@ def request_magic_link(data: MagicLinkRequest):
         if not smtp_user or not smtp_pass:
             raise HTTPException(status_code=500, detail="SMTP credentials not set in .env")
 
-        # Compose email
         msg = MIMEMultipart()
         msg['From'] = smtp_user
         msg['To'] = email
@@ -52,7 +62,6 @@ def request_magic_link(data: MagicLinkRequest):
         body = f"Hello,\n\nClick this link to login: {action_link}\n\nThis link expires in a few minutes."
         msg.attach(MIMEText(body, 'plain'))
 
-        # Send email
         server = smtplib.SMTP(smtp_host, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_pass)
