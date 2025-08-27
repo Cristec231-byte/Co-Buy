@@ -5,7 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
-import re  # 👈 added for regex replacement
+import re
 
 router = APIRouter()
 
@@ -16,17 +16,26 @@ class MagicLinkRequest(BaseModel):
 def request_magic_link(data: MagicLinkRequest):
     email = data.Email
 
-    # Check if user exists
-    user_check = supabase.table(TABLE_NAME).select("*").eq("Email", email).execute()
+    # Check if user exists in Users table
+    user_check = supabase.table(TABLE_NAME).select("Role").eq("Email", email).execute()
     if not user_check.data:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Get role from table
+    role = user_check.data[0]["Role"].strip().lower()
+    print("DEBUG ROLE CHECK:", role, "for email:", email)  # 👈 add this
+    # Decide redirect based on role
+    if role == "admin":
+        redirect_url = "http://localhost:5173/admin"
+    else:
+        redirect_url = "http://localhost:5173/dashboard"
 
     try:
         # Generate magic link using Supabase Admin API
         payload = {
             "type": "magiclink",
             "email": email,
-            "redirect_to": "http://localhost:5173/dashboard"
+            "redirect_to": redirect_url
         }
         link_info = supabase.auth.admin.generate_link(payload)
 
@@ -34,15 +43,15 @@ def request_magic_link(data: MagicLinkRequest):
         if not action_link:
             raise HTTPException(status_code=500, detail="Magic link generation failed")
 
-        # 🔧 Force redirect_to override
+        # Force override redirect_to in action link
         if "redirect_to=" in action_link:
             action_link = re.sub(
                 r"redirect_to=[^&]+",
-                "redirect_to=http://localhost:5173/dashboard",
+                f"redirect_to={redirect_url}",
                 action_link
             )
         else:
-            action_link += "&redirect_to=http://localhost:5173/dashboard"
+            action_link += f"&redirect_to={redirect_url}"
 
         # -------------------------------
         # Send email via SMTP
