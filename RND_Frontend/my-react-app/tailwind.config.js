@@ -12,9 +12,14 @@ module.exports = {
           '66%': { transform: 'translate(30px, 50px) scale(0.8)' },
           '100%': { transform: 'translate(0px, 0px) scale(1)' },
         },
+        zoomIn: {
+          '0%': { transform: 'scale(0.9)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
       },
       animation: {
         blob: 'blob 10s infinite ease-in-out',
+        zoomIn: 'zoomIn 0.8s ease-out forwards',
       },
     },
   },
