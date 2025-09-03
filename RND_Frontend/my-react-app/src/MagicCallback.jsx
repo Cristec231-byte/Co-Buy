@@ -1,38 +1,66 @@
 // src/MagicCallback.jsx
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const MagicCallback = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Get the URL fragment (#access_token=...)
-    const hash = window.location.hash;
-    if (hash) {
-      const params = new URLSearchParams(hash.replace("#", "?")); // replace # with ? to parse
+    const handleMagicLink = async () => {
+      const hash = window.location.hash;
+      if (!hash) return;
+
+      const params = new URLSearchParams(hash.replace("#", "?"));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
 
-      if (accessToken) {
-        // Save tokens to localStorage or context
-        localStorage.setItem("access_token", accessToken);
-        localStorage.setItem("refresh_token", refreshToken || "");
+      if (!accessToken) return;
 
-        console.log("Login successful, access token saved!");
+      try {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || "",
+        });
 
-        // Redirect user to dashboard or homepage
-        navigate("/dashboard"); // adjust as needed
-      } else {
-        console.error("No access token found in URL fragment.");
+        localStorage.setItem("sb-access-token", accessToken);
+        localStorage.setItem("sb-refresh-token", refreshToken || "");
+
+        // ✅ Get user info (name should be here)
+        const { data: userData, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error("Error fetching user:", error);
+        } else {
+          const user = userData.user;
+
+          // Try different metadata keys for name
+          const name =
+            user?.user_metadata?.full_name ||
+            user?.user_metadata?.name ||
+            user?.user_metadata?.display_name ||
+            user?.email;
+
+          localStorage.setItem("sb-user-name", name);
+          console.log("✅ Saved user name:", name);
+        }
+
+        navigate("/dashboard");
+      } catch (err) {
+        console.error("Error handling magic link:", err);
       }
-    } else {
-      console.error("No URL fragment found.");
-    }
+    };
+
+    handleMagicLink();
   }, [navigate]);
 
   return (
     <div className="flex items-center justify-center h-screen">
-      <p className="text-white text-lg">Logging you in...</p>
+      <p className="text-black text-lg">Logging you in...</p>
     </div>
   );
 };

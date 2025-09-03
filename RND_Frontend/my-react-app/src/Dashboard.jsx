@@ -1,28 +1,19 @@
 // src/Dashboard.jsx
 import { useEffect, useState } from "react";
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, Legend
 } from "recharts";
-import {
-  Home,
-  Settings,
-  LogOut,
-  Search,
-} from "lucide-react";
+import { Home, Settings, LogOut, Search, BarChart2 } from "lucide-react";
 import AnimatedBackground from "./assets/AnimatedBackground";
+import "./Dashboard.css";
+import { createClient } from "@supabase/supabase-js";
 
-// Sample Data
+// ✅ Setup Supabase client
+const supabaseUrl = "https://kwbgkfzvfrblsgryrlfo.supabase.co"; // your Supabase URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY; // keep in .env
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const salesData = [
   { month: "Jan", sales: 400 },
   { month: "Feb", sales: 300 },
@@ -49,83 +40,108 @@ const pieData = [
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7f7f"];
 
 export default function Dashboard() {
-  const [mounted, setMounted] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [userName, setUserName] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
+    const fetchUserAndData = async () => {
+      try {
+        // ✅ Get current user from Supabase auth
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) throw userError;
+        if (!user) {
+          console.warn("⚠️ No user logged in.");
+          setLoading(false);
+          return;
+        }
+
+        console.log("✅ Supabase user:", user);
+
+        // ✅ Fetch Name from Users table using email
+        const { data: profile, error: profileError } = await supabase
+          .from("Users")
+          .select("Name")
+          .eq("Email", user.email)
+          .single();
+
+        if (profileError) {
+          console.error("❌ Error fetching profile:", profileError);
+        } else {
+          setUserName(profile?.Name || "");
+          localStorage.setItem("sb-user-name", profile?.Name || "");
+        }
+
+        // ✅ Fetch transactions from your backend
+        const accessToken = localStorage.getItem("sb-access-token");
+        const res = await fetch("http://localhost:8000/transactions", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch transactions");
+        const txData = await res.json();
+        setTransactions(txData);
+      } catch (err) {
+        console.error("Error loading dashboard:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserAndData();
   }, []);
 
+  if (loading) return <p className="text-white">Loading dashboard...</p>;
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden text-white bg-background">
-      {/* Background */}
+    <div className="dashboard-container">
       <AnimatedBackground />
-
-      {/* Centered Dashboard Card */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="relative flex w-full max-w-6xl rounded-3xl shadow-2xl 
-                        bg-purple-950/70 backdrop-blur-2xl overflow-hidden animate-zoomIn">
+      <div className="dashboard-wrapper">
+        <div className="dashboard-card">
           {/* Sidebar */}
-          <aside className="w-64 bg-purple-900/70 backdrop-blur-xl p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center mb-10">
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center">
-                  <span className="text-black font-bold text-lg">CB</span>
-                </div>
-                <h2 className="ml-3 text-xl font-bold">Co-Buy</h2>
-              </div>
-
-              <nav className="space-y-4">
-                <button className="flex items-center space-x-3 text-white hover:text-purple-300">
-                  <Home size={20} />
-                  <span>Home</span>
-                </button>
-                <button className="flex items-center space-x-3 text-white hover:text-purple-300">
-                  <svg className="w-5 h-5" />
-                  <span>Dashboard</span>
-                </button>
+          <aside className="sidebar">
+            <div className="sidebar-top">
+              <div className="logo"><span className="logo-text">Co-Buy</span></div>
+              <nav className="nav">
+                <button className="nav-item"><Home size={22} /><span>Home</span></button>
+                <button className="nav-item"><BarChart2 size={22} /><span>Dashboard</span></button>
               </nav>
             </div>
-
-            <div className="space-y-4">
-              <button className="flex items-center space-x-3 text-white hover:text-purple-300">
-                <Settings size={20} />
-                <span>Settings</span>
-              </button>
-              <button className="flex items-center space-x-3 text-white hover:text-purple-300">
-                <LogOut size={20} />
-                <span>Logout</span>
-              </button>
+            <div className="sidebar-bottom">
+              <button className="nav-item"><Settings size={22} /><span>Settings</span></button>
+              <button className="nav-item"><LogOut size={22} /><span>Logout</span></button>
             </div>
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 p-8">
+          <main className="main-content">
             {/* Header */}
-            <div className="flex items-center justify-between mb-10">
+            <div className="header">
               <div>
-                <h1 className="text-3xl font-bold">Welcome Mr Smith!</h1>
-                <p className="text-gray-300">Here is your sales forecast dashboard</p>
+                <h1 className="header-title">
+                  Welcome to your dashboard{userName ? `, ${userName}` : ""}!
+                </h1>
+                <p className="header-subtitle">Here is your personalized dashboard</p>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center bg-white bg-opacity-20 px-4 py-2 rounded-full">
-                  <Search size={18} className="mr-2" />
-                  <input
-                    type="text"
-                    placeholder="Search your query"
-                    className="bg-transparent outline-none text-white placeholder-gray-300"
-                  />
+              <div className="header-right">
+                <div className="search-box">
+                  <Search size={18} className="search-icon" />
+                  <input type="text" placeholder="Search your query" className="search-input" />
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gray-600 overflow-hidden">
-                  {/* Avatar placeholder */}
-                </div>
+                <div className="avatar"></div>
               </div>
             </div>
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Sales Chart */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-semibold mb-4">Monthly Sales</h2>
+            {/* Charts */}
+            <div className="charts-grid">
+              <div className="chart-card">
+                <h2 className="chart-title">Monthly Sales</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={salesData}>
                     <XAxis dataKey="month" stroke="#fff" />
@@ -137,9 +153,8 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Growth Chart */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-semibold mb-4">Growth Over Years</h2>
+              <div className="chart-card">
+                <h2 className="chart-title">Growth Over Years</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={growthData}>
                     <XAxis dataKey="year" stroke="#fff" />
@@ -151,9 +166,8 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Market Share Pie */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-lg lg:col-span-2">
-                <h2 className="text-xl font-semibold mb-4">Market Share</h2>
+              <div className="chart-card wide">
+                <h2 className="chart-title">Market Share</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -173,6 +187,23 @@ export default function Dashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+
+            {/* Transactions */}
+            <div className="chart-card wide">
+              <h2 className="chart-title">Your Transactions</h2>
+              {transactions.length > 0 ? (
+                <table className="transactions-table">
+                  <thead>
+                    <tr><th>Date</th><th>Amount</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((t) => (
+                      <tr key={t.id}><td>{t.date}</td><td>{t.amount}</td><td>{t.status}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (<p>No transactions available.</p>)}
             </div>
           </main>
         </div>

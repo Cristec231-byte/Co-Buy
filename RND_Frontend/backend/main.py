@@ -15,11 +15,17 @@ load_dotenv(dotenv_path=env_path)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE = os.getenv("SUPABASE_SERVICE_ROLE")
 TABLE_NAME = os.getenv("TABLE_NAME", "Users")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")  # 👈 load JWT secret
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE:
     raise RuntimeError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE")
 
+if not SUPABASE_JWT_SECRET:
+    raise RuntimeError("Missing SUPABASE_JWT_SECRET")
+
+# -------------------
 # Supabase client (shared)
+# -------------------
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
 
 # -------------------
@@ -47,11 +53,13 @@ app.add_middleware(
 # -------------------
 # Routers
 # -------------------
-from auth import router as auth_router   # ✅ import auth router
+from auth import router as auth_router
 from users import router as users_router
+from transactions import router as transactions_router   # ✅ import transactions router
 
-app.include_router(auth_router, prefix="/auth", tags=["Auth"])  # ✅ include auth router
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(users_router, prefix="/users", tags=["Users"])
+app.include_router(transactions_router, prefix="/transactions", tags=["Transactions"])  # ✅ add here
 
 # -------------------
 # Health Check
